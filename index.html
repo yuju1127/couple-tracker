@@ -89,8 +89,13 @@ svg{width:100%;height:auto;display:block}
 <section id="tab-money">
   <div class="card">
     <div class="top">
-      <div><div class="sub">當月總花費</div><div class="total" id="mTotal">$0</div></div>
+      <div><div class="sub">本月可使用</div><div class="total" id="mLeft">$0</div></div>
       <input type="month" id="mMonth" class="mi" aria-label="月份">
+    </div>
+    <div id="mMeter" style="margin-top:14px"></div>
+    <div class="pay">
+      <div><div class="n">當月收入</div><div class="v" id="mIncome">$0</div></div>
+      <div><div class="n">當月總花費</div><div class="v" id="mTotal">$0</div></div>
     </div>
     <div id="mByPayer"></div>
     <div id="mCats" style="margin-top:22px"></div>
@@ -111,6 +116,21 @@ svg{width:100%;height:auto;display:block}
     </form>
   </div>
   <div class="card"><h2>當月明細</h2><div id="mList"></div></div>
+  <div class="card">
+    <h2>新增收入</h2>
+    <form id="iForm">
+      <div class="row">
+        <div><label>日期</label><input type="date" name="date" required></div>
+        <div><label>收入者（登入帳號）</label><div id="incomeWho" class="pbox"></div></div>
+      </div>
+      <div class="row">
+        <div><label>金額</label><input name="amount" type="number" min="0" step="any" inputmode="decimal" required></div>
+        <div><label>備註</label><input name="name" placeholder="例如：薪水"></div>
+      </div>
+      <button class="btn">新增收入</button>
+    </form>
+  </div>
+  <div class="card"><h2>當月收入明細</h2><div id="iList"></div></div>
 </section>
 
 <!-- 健康 -->
@@ -195,10 +215,10 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
-const COLL=['expenses','weights','meals','workouts'];
+const COLL=['expenses','incomes','weights','meals','workouts'];
 
 // db 是雲端資料的即時鏡像，由 onSnapshot 更新
-let db={expenses:[],weights:[],meals:[],workouts:[]};
+let db={expenses:[],incomes:[],weights:[],meals:[],workouts:[]};
 // 內部以「我 / 男友」儲存，畫面顯示暱稱
 const NAMES={'我':'如如','男友':'桓桓'};
 const nm=u=>NAMES[u]||u;
@@ -227,7 +247,7 @@ onAuthStateChanged(auth,u=>{
   currentUser=u;
   me=u?(UID_MAP[u.uid]||null):null;
   $('#userName').textContent=u?(me?`${nm(me)}（${u.email}）`:u.email):'';
-  $('#payerShow').textContent=me?nm(me):'未綁定的帳號';
+  $('#payerShow').textContent=$('#incomeWho').textContent=me?nm(me):'未綁定的帳號';
   if(me){user=me;document.querySelectorAll('#who button').forEach(x=>x.classList.toggle('on',x.dataset.u===me))}
   $('#login').classList.toggle('hidden',!!u);
   $('#loginMsg').textContent='';
@@ -273,6 +293,7 @@ window.del=del;
 
 // 編輯：每種紀錄的可編輯欄位
 const SCHEMA={
+  incomes:[['date','日期','date'],['person','收入者',['我','男友']],['amount','金額','number'],['name','備註','text']],
   expenses:[['date','日期','date'],['payer','付款人',['我','男友']],['cat','項目',CATS],['amount','金額','number'],['name','備註','text']],
   weights:[['date','日期','date'],['kg','體重 (kg)','number','0.1']],
   meals:[['date','日期','date'],['meal','餐別',['早餐','午餐','晚餐','點心']],['food','食物內容摘要','text'],['kcal','估算熱量 (kcal)','number']],
@@ -285,7 +306,7 @@ function edit(coll,id){
   $('#eFields').innerHTML=SCHEMA[coll].map(([k,label,t,step])=>{
     const v=esc(rec[k]);
     const input=Array.isArray(t)
-      ?`<select name="${k}">${t.map(o=>`<option value="${esc(o)}"${o===rec[k]?' selected':''}>${esc(k==='payer'?nm(o):o)}</option>`).join('')}</select>`
+      ?`<select name="${k}">${t.map(o=>`<option value="${esc(o)}"${o===rec[k]?' selected':''}>${esc(k==='payer'||k==='person'?nm(o):o)}</option>`).join('')}</select>`
       :`<input name="${k}" type="${t}" value="${v}"${k==='name'?'':' required'}${t==='number'?` min="0" step="${step||'any'}" inputmode="decimal"`:''}>`;
     return `<label>${label}</label>${input}`;
   }).join('');
@@ -311,6 +332,10 @@ $('#mForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   if(!me){alert('這個帳號尚未綁定付款人，無法新增花費。');return}
   add('expenses',{date:f.get('date'),payer:me,name:f.get('name').trim(),amount:+f.get('amount'),cat:f.get('cat')});
   e.target.name.value='';e.target.amount.value='';};
+$('#iForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  if(!me){alert('這個帳號尚未綁定使用者，無法新增收入。');return}
+  add('incomes',{date:f.get('date'),person:me,name:f.get('name').trim(),amount:+f.get('amount')});
+  e.target.name.value='';e.target.amount.value='';};
 $('#wForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   const date=f.get('date');
   db.weights.filter(w=>w.user===user&&w.date===date).forEach(w=>del1('weights',w.id)); // 同日同人只留一筆
@@ -330,6 +355,15 @@ function renderMoney(){
   const list=db.expenses.filter(x=>x.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date));
   const total=list.reduce((s,x)=>s+x.amount,0);
   $('#mTotal').textContent=fmt(total);
+  const ilist=db.incomes.filter(x=>x.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date));
+  const income=ilist.reduce((s,x)=>s+x.amount,0);
+  const left=income-total;
+  $('#mIncome').textContent=fmt(income);
+  $('#mLeft').textContent=(left<0?'-':'')+fmt(Math.abs(left));
+  $('#mLeft').style.color=left<0?'var(--danger)':'';
+  const pct=income>0?total/income*100:(total>0?100:0);
+  $('#mMeter').innerHTML=income>0||total>0?`<div class="trk" role="img" aria-label="已花費佔收入 ${Math.round(pct)}%"><b style="width:${Math.min(100,pct)}%;background:${left<0?'var(--danger)':'var(--pri)'}"></b></div><div class="sub" style="margin-top:6px">${income>0?`已花 ${Math.round(pct)}% 的收入`:'本月還沒有輸入收入'}</div>`:'<div class="sub">本月還沒有輸入收入</div>';
+  $('#iList').innerHTML=ilist.length?ilist.map(x=>item(esc(x.name||'收入'),`${esc(x.date)} · ${esc(nm(x.person))}`,fmt(x.amount),'incomes',x.id)).join(''):'<div class="empty">這個月還沒有收入紀錄</div>';
   const by={我:0,男友:0};list.forEach(x=>by[x.payer]=(by[x.payer]||0)+x.amount);
   $('#mByPayer').innerHTML=`<div class="pay"><div><div class="n">${esc(nm('我'))}花了</div><div class="v">${fmt(by['我'])}</div></div><div><div class="n">${esc(nm('男友'))}花了</div><div class="v">${fmt(by['男友'])}</div></div></div>`;
   const cat={};list.forEach(x=>{cat[x.cat]=(cat[x.cat]||0)+x.amount});
