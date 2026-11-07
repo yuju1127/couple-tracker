@@ -249,14 +249,12 @@ function renderMoney(){
   const total=list.reduce((s,x)=>s+x.amount,0);
   $('#mTotal').textContent=fmt(total);
   const by={我:0,男友:0};list.forEach(x=>by[x.payer]=(by[x.payer]||0)+x.amount);
-  $('#mByPayer').innerHTML=`<div class="legend"><span><i class="dot c-me"></i>${esc(nm('我'))} ${fmt(by['我'])}</span><span><i class="dot c-bf"></i>${esc(nm('男友'))} ${fmt(by['男友'])}</span></div>`;
-  const cat={};list.forEach(x=>{const c=cat[x.cat]||(cat[x.cat]={我:0,男友:0,sum:0});c[x.payer==='男友'?'男友':'我']+=x.amount;c.sum+=x.amount});
-  const rows=Object.entries(cat).sort((a,b)=>b[1].sum-a[1].sum);
-  const mx=rows.length?rows[0][1].sum:1;
-  $('#mCats').innerHTML=rows.map(([c,v])=>`<div class="cat"><div class="h"><span>${esc(c)}</span><b>${fmt(v.sum)}</b></div>
-    <div class="trk" style="width:${Math.max(6,v.sum/mx*100)}%" role="img" aria-label="${esc(c)}：${esc(nm('我'))} ${fmt(v['我'])}，${esc(nm('男友'))} ${fmt(v['男友'])}">
-      <b class="c-me" style="width:${v.sum?v['我']/v.sum*100:0}%"></b><b class="c-bf" style="width:${v.sum?v['男友']/v.sum*100:0}%"></b></div>
-    <div class="d">${esc(nm('我'))} ${fmt(v['我'])}　${esc(nm('男友'))} ${fmt(v['男友'])}</div></div>`).join('');
+  $('#mByPayer').innerHTML=`<div class="legend"><span>${esc(nm('我'))}花了 <b>${fmt(by['我'])}</b></span><span>${esc(nm('男友'))}花了 <b>${fmt(by['男友'])}</b></span></div>`;
+  const cat={};list.forEach(x=>{cat[x.cat]=(cat[x.cat]||0)+x.amount});
+  const rows=Object.entries(cat).sort((a,b)=>b[1]-a[1]);
+  const mx=rows.length?rows[0][1]:1;
+  $('#mCats').innerHTML=rows.map(([c,v])=>`<div class="cat"><div class="h"><span>${esc(c)}</span><b>${fmt(v)}</b></div>
+    <div class="trk" role="img" aria-label="${esc(c)} ${fmt(v)}"><b style="width:${Math.max(3,v/mx*100)}%;background:var(--pri)"></b></div></div>`).join('');
   $('#mList').innerHTML=list.length?list.map(x=>item(esc(x.name),`${esc(x.date)} · <span class="tag">${esc(x.cat)}</span>${esc(nm(x.payer))}付`,fmt(x.amount),'expenses',x.id)).join(''):'<div class="empty">這個月還沒有花費紀錄</div>';
 }
 
