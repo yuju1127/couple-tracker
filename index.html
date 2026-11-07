@@ -47,10 +47,24 @@ svg{width:100%;height:auto;display:block}
 .cl{margin-top:8px}
 .cr{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
 .cr em{font-style:normal;color:var(--sub);font-size:12px;margin-left:4px}
+#login{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center}
+#login.hidden{display:none}
 .hidden{display:none}
 </style>
 </head>
 <body>
+<div id="login">
+  <div class="card" style="width:min(92vw,360px)">
+    <h2 style="font-size:17px">🏠 我們的小日子</h2>
+    <div id="loginLoading" class="sub">載入中…</div>
+    <form id="loginForm" class="hidden">
+      <label>Email</label><input name="email" type="email" autocomplete="username" required>
+      <label>密碼</label><input name="password" type="password" autocomplete="current-password" required>
+      <button class="btn">登入</button>
+    </form>
+    <div class="sub" id="loginMsg" style="margin-top:8px;color:var(--danger)"></div>
+  </div>
+</div>
 <header><h1>🏠 我們的小日子</h1><span class="sub" id="today"></span></header>
 <main>
 <!-- 記帳 -->
@@ -132,10 +146,12 @@ svg{width:100%;height:auto;display:block}
 <section id="tab-data" class="hidden">
   <div class="card">
     <h2>資料同步</h2>
-    <p class="sub">資料只存在這個瀏覽器。要和對方同步：一人「匯出」，另一人「匯入」。匯入會依 id 合併，不會覆蓋或重複既有資料。</p>
+    <p class="sub">資料已即時同步到雲端，兩人登入後看到的是同一份。「匯出」可當備份；「匯入」會依 id 合併，不會覆蓋或重複。</p>
     <button class="btn" id="exp">匯出 JSON</button>
     <button class="btn ghost" id="impBtn" style="margin-top:10px">匯入 JSON</button>
     <input type="file" id="impFile" accept="application/json,.json" class="hidden">
+    <button class="btn ghost" id="upLocal" style="margin-top:10px">上傳這台裝置的舊資料到雲端</button>
+    <button class="btn ghost" id="logout" style="margin-top:10px">登出</button>
     <div class="sub" id="dataInfo" style="margin-top:10px"></div>
   </div>
 </section>
@@ -148,26 +164,71 @@ svg{width:100%;height:auto;display:block}
   <button data-t="data">🔄 資料</button>
 </nav>
 
-<script>
-const KEY='couple-tracker-v1';
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import {getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {initializeFirestore,persistentLocalCache,persistentMultipleTabManager,collection,doc,setDoc,deleteDoc,onSnapshot} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// Firebase 設定值本來就會公開在網頁中；真正的保護是 Firestore 安全規則 + 登入
+const firebaseConfig={
+  apiKey:"AIzaSyD0E3HCIXqPYZJMJ2NKSk5shJk6kP4Kdl4",
+  authDomain:"couple-tracker-321ba.firebaseapp.com",
+  projectId:"couple-tracker-321ba",
+  storageBucket:"couple-tracker-321ba.firebasestorage.app",
+  messagingSenderId:"356055224451",
+  appId:"1:356055224451:web:7e6e901e2dae48c1350bb6"
+};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const fsdb=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+
+const KEY='couple-tracker-v1'; // 舊版本機資料的 key（只用於「上傳舊資料」）
 const CATS=['房屋租金','電費','水費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
-// 依 CATS 順序對應：租金、水電、瓦斯、網路、外食、食材、貓咪、雜項、娛樂交通
-const CAT_COLORS=['#e8735a','#4a90d9','#f2a541','#8e6bd1','#e0568b','#5bb381','#a9805b','#8a97a8','#3fb5c4'];
+// 依 CATS 順序一一對應（目前 10 個分類，新增分類時請一併補顏色）
+const CAT_COLORS=['#e8735a','#4a90d9','#3fb5c4','#f2a541','#8e6bd1','#e0568b','#5bb381','#a9805b','#8a97a8','#c9b037'];
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const COLL=['expenses','weights','meals','workouts'];
 
+// db 是雲端資料的即時鏡像，由 onSnapshot 更新
 let db={expenses:[],weights:[],meals:[],workouts:[]};
-try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r)COLL.forEach(k=>{if(Array.isArray(r[k]))db[k]=r[k]})}catch(e){}
 // 內部以「我 / 男友」儲存，畫面顯示暱稱
 const NAMES={'我':'如如','男友':'桓桓'};
 const nm=u=>NAMES[u]||u;
 const ALIAS={'如如':'我','桓桓':'男友'};
-db.expenses.forEach(r=>{if(ALIAS[r.payer])r.payer=ALIAS[r.payer]});
-let memOnly=false;
-function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){memOnly=true}}
+
+// ---- Firestore 讀寫 ----
+const run=p=>p.catch(e=>{console.error(e);alert('操作失敗：'+(e.code==='permission-denied'?'沒有權限，請確認登入的是正確帳號。':(e.message||e)))});
+const save1=(coll,rec)=>{const {id,...rest}=rec;return run(setDoc(doc(fsdb,coll,id),rest))};
+const del1=(coll,id)=>run(deleteDoc(doc(fsdb,coll,id)));
+let unsubs=[],currentUser=null;
+function startSync(){
+  stopSync();
+  COLL.forEach(k=>unsubs.push(onSnapshot(collection(fsdb,k),snap=>{
+    db[k]=snap.docs.map(d=>({id:d.id,...d.data()}));render();
+  },e=>{console.error(e);alert('讀取雲端資料失敗：'+(e.code==='permission-denied'?'沒有權限，請確認登入的是正確帳號。':e.message))})));
+}
+function stopSync(){unsubs.forEach(f=>f());unsubs=[];COLL.forEach(k=>db[k]=[]);}
+
+// ---- 登入 ----
+onAuthStateChanged(auth,u=>{
+  currentUser=u;
+  $('#login').classList.toggle('hidden',!!u);
+  $('#loginMsg').textContent='';
+  $('#loginForm').classList.toggle('hidden',!!u);
+  $('#loginLoading').classList.add('hidden');
+  if(u)startSync();else{stopSync();render();}
+});
+$('#loginForm').onsubmit=async e=>{
+  e.preventDefault();
+  const f=new FormData(e.target);
+  $('#loginMsg').textContent='登入中…';
+  try{await signInWithEmailAndPassword(auth,f.get('email').trim(),f.get('password'));e.target.password.value=''}
+  catch(err){$('#loginMsg').textContent='登入失敗，請確認帳號與密碼。'}
+};
+$('#logout').onclick=()=>{if(confirm('確定登出？'))signOut(auth)};
 
 let user='我';
 
@@ -192,8 +253,8 @@ $('#hDate').onchange=render;
 
 const fmt=n=>'$'+Math.round(n).toLocaleString();
 
-function add(coll,rec){db[coll].push({id:uid(),...rec});save();render()}
-function del(coll,id){if(!confirm('確定刪除這筆紀錄？'))return;db[coll]=db[coll].filter(r=>r.id!==id);save();render()}
+function add(coll,rec){save1(coll,{id:uid(),...rec})}
+function del(coll,id){if(!confirm('確定刪除這筆紀錄？'))return;del1(coll,id)}
 window.del=del;
 
 // 編輯：每種紀錄的可編輯欄位
@@ -221,11 +282,15 @@ $('#eCancel').onclick=()=>$('#dlg').close();
 $('#eDlg').onsubmit=e=>{
   if(!editing)return;
   const f=new FormData(e.target);
-  const rec=db[editing.coll].find(r=>r.id===editing.id);
-  if(rec)SCHEMA[editing.coll].forEach(([k,,t])=>{
-    const v=f.get(k);rec[k]=(t==='number')?+v:(t==='text'?v.trim():v);
-  });
-  editing=null;save();render();
+  const orig=db[editing.coll].find(r=>r.id===editing.id);
+  if(orig){
+    const rec={...orig};
+    SCHEMA[editing.coll].forEach(([k,,t])=>{
+      const v=f.get(k);rec[k]=(t==='number')?+v:(t==='text'?v.trim():v);
+    });
+    save1(editing.coll,rec);
+  }
+  editing=null;
 };
 
 $('#mForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
@@ -233,7 +298,7 @@ $('#mForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   e.target.name.value='';e.target.amount.value='';};
 $('#wForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   const date=f.get('date');
-  db.weights=db.weights.filter(w=>!(w.user===user&&w.date===date)); // 同日同人只留一筆
+  db.weights.filter(w=>w.user===user&&w.date===date).forEach(w=>del1('weights',w.id)); // 同日同人只留一筆
   add('weights',{date,user,kg:+f.get('kg')});e.target.kg.value='';};
 $('#fForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   add('meals',{date:f.get('date'),user,meal:f.get('meal'),food:f.get('food').trim(),kcal:+f.get('kcal')});
@@ -298,7 +363,7 @@ function renderHealth(){
 }
 
 function renderData(){
-  $('#dataInfo').textContent=`目前共 ${db.expenses.length} 筆花費、${db.weights.length} 筆體重、${db.meals.length} 筆飲食、${db.workouts.length} 筆運動。`+(memOnly?'（注意：瀏覽器無法寫入儲存空間，關閉頁面後資料會消失，請務必匯出）':'');
+  $('#dataInfo').textContent=`雲端目前共 ${db.expenses.length} 筆花費、${db.weights.length} 筆體重、${db.meals.length} 筆飲食、${db.workouts.length} 筆運動。`+(currentUser?`　登入帳號：${currentUser.email}`:'');
 }
 
 function render(){renderMoney();renderHealth();renderData()}
@@ -309,16 +374,37 @@ $('#exp').onclick=()=>{
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 };
 $('#impBtn').onclick=()=>$('#impFile').click();
+// 把資料合併進雲端：依 id 比對，已存在的不會覆蓋或重複
+async function mergeIn(data){
+  let added=0;const jobs=[];
+  COLL.forEach(k=>{if(!Array.isArray(data[k]))return;
+    const have=new Set(db[k].map(r=>r.id));
+    data[k].forEach(r=>{
+      if(!r||!r.id||have.has(r.id))return;
+      if(k==='expenses'&&ALIAS[r.payer])r={...r,payer:ALIAS[r.payer]};
+      have.add(r.id);added++;jobs.push(save1(k,r));
+    });});
+  await Promise.all(jobs);
+  return added;
+}
 $('#impFile').onchange=async e=>{
   const file=e.target.files[0];if(!file)return;
+  if(!currentUser){alert('請先登入。');e.target.value='';return}
   try{
-    const data=JSON.parse(await file.text());let added=0;
-    COLL.forEach(k=>{if(!Array.isArray(data[k]))return;
-      const have=new Set(db[k].map(r=>r.id));
-      data[k].forEach(r=>{if(r&&r.id&&!have.has(r.id)){db[k].push(r);have.add(r.id);added++}});});
-    save();render();alert(`匯入完成，新增 ${added} 筆。`);
+    const data=JSON.parse(await file.text());
+    alert(`匯入完成，新增 ${await mergeIn(data)} 筆。`);
   }catch(err){alert('匯入失敗：檔案不是有效的 JSON。')}
   e.target.value='';
+};
+// 舊版把資料存在這台裝置的瀏覽器裡，這顆按鈕把它搬上雲端
+$('#upLocal').onclick=async()=>{
+  if(!currentUser){alert('請先登入。');return}
+  let old=null;
+  try{old=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
+  const n=old?COLL.reduce((s,k)=>s+(Array.isArray(old[k])?old[k].length:0),0):0;
+  if(!n){alert('這台裝置上沒有舊版的本機資料。');return}
+  if(!confirm(`找到 ${n} 筆舊資料，要上傳到雲端嗎？（已存在的不會重複）`))return;
+  alert(`上傳完成，新增 ${await mergeIn(old)} 筆。`);
 };
 
 render();
