@@ -64,6 +64,14 @@ svg{width:100%;height:auto;display:block}
 .ghost-s{border:0;background:var(--pri2);border-radius:999px;padding:4px 14px;font-size:13px;cursor:pointer;font-weight:600}
 #login{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center}
 #login.hidden{display:none}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 20px}
+.act{border:0;border-radius:var(--radius);background:var(--card);box-shadow:var(--shadow);padding:16px 10px;font-weight:700;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--ink)}
+.act span{font-size:20px}
+.act:active{transform:translateY(1px)}
+.big-dlg{max-height:88vh;overflow:auto}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.dh h2{margin:0;font-size:17px}
+.dclose{border:0;background:var(--pri2);border-radius:999px;width:32px;height:32px;font-size:20px;line-height:1;cursor:pointer}
 .hidden{display:none}
 </style>
 </head>
@@ -100,24 +108,13 @@ svg{width:100%;height:auto;display:block}
     <div id="mByPayer"></div>
     <div id="mCats" style="margin-top:22px"></div>
   </div>
-  <div class="card">
-    <h2>新增花費</h2>
-    <form id="mForm">
-      <div class="row">
-        <div><label>日期</label><input type="date" name="date" required></div>
-        <div><label>付款人（登入帳號）</label><div id="payerShow" class="pbox"></div></div>
-      </div>
-		<div><label>項目</label><select name="cat"></select></div>
-      <div class="row">
-        <div><label>金額</label><input name="amount" type="number" min="0" step="any" inputmode="decimal" required></div>
-        <div><label>備註</label><input name="name"></div>
-      </div>
-      <button class="btn">新增</button>
-    </form>
+  <div class="acts">
+    <button class="act" data-open="dlgInc"><span>💰</span>收入</button>
+    <button class="act" data-open="dlgExp"><span>🧾</span>支出</button>
   </div>
-  <div class="card"><h2>當月明細</h2><div id="mList"></div></div>
-  <div class="card">
-    <h2>新增收入</h2>
+
+  <dialog id="dlgInc" class="big-dlg">
+    <div class="dh"><h2>收入</h2><button type="button" class="dclose" data-close="dlgInc" aria-label="關閉">×</button></div>
     <form id="iForm">
       <div class="row">
         <div><label>日期</label><input type="date" name="date" required></div>
@@ -129,8 +126,27 @@ svg{width:100%;height:auto;display:block}
       </div>
       <button class="btn">新增收入</button>
     </form>
-  </div>
-  <div class="card"><h2>當月收入明細</h2><div id="iList"></div></div>
+    <h2 style="margin:24px 0 8px">當月收入明細 <span class="sub">（依上方所選月份）</span></h2>
+    <div id="iList"></div>
+  </dialog>
+
+  <dialog id="dlgExp" class="big-dlg">
+    <div class="dh"><h2>支出</h2><button type="button" class="dclose" data-close="dlgExp" aria-label="關閉">×</button></div>
+    <form id="mForm">
+      <div class="row">
+        <div><label>日期</label><input type="date" name="date" required></div>
+        <div><label>付款人（登入帳號）</label><div id="payerShow" class="pbox"></div></div>
+      </div>
+      <div><label>項目</label><select name="cat"></select></div>
+      <div class="row">
+        <div><label>金額</label><input name="amount" type="number" min="0" step="any" inputmode="decimal" required></div>
+        <div><label>備註</label><input name="name"></div>
+      </div>
+      <button class="btn">新增花費</button>
+    </form>
+    <h2 style="margin:24px 0 8px">當月明細 <span class="sub">（依上方所選月份）</span></h2>
+    <div id="mList"></div>
+  </dialog>
 </section>
 
 <!-- 健康 -->
@@ -411,6 +427,11 @@ function renderHealth(){
 }
 
 function render(){renderMoney();renderHealth()}
+
+// 收入 / 支出視窗
+document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>$('#'+b.dataset.open).showModal());
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());
+document.querySelectorAll('.big-dlg').forEach(d=>d.addEventListener('click',e=>{const r=d.getBoundingClientRect();if(e.target===d&&(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom))d.close()}));
 
 render();
 </script>
