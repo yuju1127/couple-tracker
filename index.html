@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>我們的記帳與健康日誌</title>
+<style>
+:root{--bg:#fff8f3;--card:#fff;--ink:#3b3a4a;--sub:#8a8799;--line:#f0e6df;--pri:#ff8a65;--pri2:#ffe3d8;--ok:#4caf93;--danger:#e57373;--c1:#ff8a65;--c2:#4a90d9}
+@media (prefers-color-scheme:dark){:root{--c1:#ff9d7e;--c2:#6aaeff;--bg:#1d1b22;--card:#28262f;--ink:#f1eef6;--sub:#a29fb0;--line:#3a3743;--pri:#ff9d7e;--pri2:#43332f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;padding-bottom:70px}
+header{padding:14px 16px 6px;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:18px;margin:0}
+main{padding:0 16px;max-width:560px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+.card h2{font-size:15px;margin:0 0 10px}
+label{display:block;font-size:13px;color:var(--sub);margin:8px 0 3px}
+input,select,button{font:inherit;color:inherit}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn{background:var(--pri);color:#fff;border:0;border-radius:12px;padding:11px 16px;width:100%;margin-top:12px;font-weight:600;cursor:pointer}
+.btn.ghost{background:var(--pri2);color:var(--ink);margin-top:0}
+.seg{display:flex;background:var(--pri2);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:transparent;border-radius:10px;padding:8px;cursor:pointer}
+.seg button.on{background:var(--card);font-weight:700}
+.big{font-size:30px;font-weight:700;color:var(--pri)}
+.sub{color:var(--sub);font-size:13px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.item .l{min-width:0}.item .t{overflow-wrap:anywhere}
+.item .r{white-space:nowrap;font-weight:600}
+.x{background:none;border:0;color:var(--danger);font-size:18px;cursor:pointer;padding:4px 8px}
+.ed{background:none;border:0;color:var(--sub);font-size:16px;cursor:pointer;padding:4px 6px}
+dialog{border:0;border-radius:16px;padding:16px;width:min(92vw,420px);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+.tag{display:inline-block;font-size:11px;background:var(--pri2);border-radius:8px;padding:1px 7px;margin-right:4px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:12px 4px;cursor:pointer;color:var(--sub);font-weight:600}
+nav button.on{color:var(--pri)}
+.empty{color:var(--sub);text-align:center;padding:14px 0;font-size:14px}
+svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:13px;margin-top:6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:baseline}
+.c-me{background:var(--c1)}.c-bf{background:var(--c2)}
+.cat{margin:10px 0}
+.cat .h{display:flex;justify-content:space-between;font-size:13px}
+.cat .trk{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:4px 0 2px;background:var(--line)}
+.cat .trk b{display:block;min-width:0}
+.cat .d{font-size:12px;color:var(--sub)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header><h1>🏠 我們的小日子</h1><span class="sub" id="today"></span></header>
+<main>
+<!-- 記帳 -->
+<section id="tab-money">
+  <div class="card">
+    <div class="row">
+      <div><label>月份</label><input type="month" id="mMonth"></div>
+      <div><div class="sub" style="padding-top:8px">當月總花費</div><div class="big" id="mTotal">$0</div></div>
+    </div>
+	<label>&nbsp;</label>
+    <div class="sub" id="mByPayer"></div>
+    <div id="mCats" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>新增花費</h2>
+    <form id="mForm">
+      <div class="row">
+        <div><label>日期</label><input type="date" name="date" required></div>
+        <div><label>付款人</label><select name="payer"><option value="我">如如</option><option value="男友">桓桓</option></select></div>
+      </div>
+      <label>項目名稱</label><input name="name" required placeholder="例如：全聯">
+      <div class="row">
+        <div><label>金額</label><input name="amount" type="number" min="0" step="any" inputmode="decimal" required></div>
+        <div><label>分類</label><select name="cat"></select></div>
+      </div>
+      <button class="btn">新增</button>
+    </form>
+  </div>
+  <div class="card"><h2>當月明細</h2><div id="mList"></div></div>
+</section>
+
+<!-- 健康 -->
+<section id="tab-health" class="hidden">
+  <div class="card">
+    <div class="seg" id="who"><button data-u="我" class="on">如如</button><button data-u="男友">桓桓</button></div>
+  </div>
+  <div class="card"><h2>體重趨勢 (kg)</h2><div id="chart"></div><div class="sub" id="wInfo"></div></div>
+  <div class="card">
+    <h2>今日摘要</h2>
+    <div class="row"><div><div class="big" id="sumKcal">0</div><div class="sub">攝取 kcal</div></div>
+    <div><div class="big" id="sumMin">0</div><div class="sub">運動 分鐘</div></div></div>
+    <div class="sub">以下日期為你選擇的紀錄日</div>
+    <label>檢視日期</label><input type="date" id="hDate">
+  </div>
+  <div class="card">
+    <h2>記錄體重</h2>
+    <form id="wForm"><div class="row">
+      <div><label>日期</label><input type="date" name="date" required></div>
+      <div><label>體重 (kg)</label><input name="kg" type="number" step="0.1" min="0" inputmode="decimal" required></div>
+    </div><button class="btn">儲存</button></form>
+  </div>
+  <div class="card">
+    <h2>記錄飲食</h2>
+    <form id="fForm">
+      <div class="row">
+        <div><label>日期</label><input type="date" name="date" required></div>
+        <div><label>餐別</label><select name="meal"><option>早餐</option><option>午餐</option><option>晚餐</option><option>點心</option></select></div>
+      </div>
+      <label>食物內容摘要</label><input name="food" required placeholder="例如：雞胸沙拉">
+      <label>估算熱量 (kcal)</label><input name="kcal" type="number" min="0" inputmode="numeric" required>
+      <button class="btn">儲存</button>
+    </form>
+  </div>
+  <div class="card">
+    <h2>記錄運動</h2>
+    <form id="eForm">
+      <div class="row">
+        <div><label>日期</label><input type="date" name="date" required></div>
+        <div><label>項目</label><select name="type"><option>重訓</option><option>跑步</option><option>TRX</option><option>其他</option></select></div>
+      </div>
+      <label>時間 (分鐘)</label><input name="min" type="number" min="0" inputmode="numeric" required>
+      <button class="btn">儲存</button>
+    </form>
+  </div>
+  <div class="card"><h2>當日日誌</h2><div id="hList"></div></div>
+</section>
+
+<!-- 資料 -->
+<section id="tab-data" class="hidden">
+  <div class="card">
+    <h2>資料同步</h2>
+    <p class="sub">資料只存在這個瀏覽器。要和對方同步：一人「匯出」，另一人「匯入」。匯入會依 id 合併，不會覆蓋或重複既有資料。</p>
+    <button class="btn" id="exp">匯出 JSON</button>
+    <button class="btn ghost" id="impBtn" style="margin-top:10px">匯入 JSON</button>
+    <input type="file" id="impFile" accept="application/json,.json" class="hidden">
+    <div class="sub" id="dataInfo" style="margin-top:10px"></div>
+  </div>
+</section>
+</main>
+<dialog id="dlg"><form id="eDlg" method="dialog"><h2 style="font-size:16px;margin:0 0 4px">編輯紀錄</h2><div id="eFields"></div>
+  <div class="row" style="margin-top:12px"><button type="button" class="btn ghost" id="eCancel" style="margin:0">取消</button><button class="btn" style="margin:0">儲存</button></div></form></dialog>
+<nav>
+  <button data-t="money" class="on">💰 記帳</button>
+  <button data-t="health">🥗 健康</button>
+  <button data-t="data">🔄 資料</button>
+</nav>
+
+<script>
+const KEY='couple-tracker-v1';
+const CATS=['房屋租金','水電費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const COLL=['expenses','weights','meals','workouts'];
+
+let db={expenses:[],weights:[],meals:[],workouts:[]};
+try{const r=JSON.parse(localStorage.getItem(KEY)||'null');if(r)COLL.forEach(k=>{if(Array.isArray(r[k]))db[k]=r[k]})}catch(e){}
+// 內部以「我 / 男友」儲存，畫面顯示暱稱
+const NAMES={'我':'如如','男友':'桓桓'};
+const nm=u=>NAMES[u]||u;
+const ALIAS={'如如':'我','桓桓':'男友'};
+db.expenses.forEach(r=>{if(ALIAS[r.payer])r.payer=ALIAS[r.payer]});
+let memOnly=false;
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){memOnly=true}}
+
+let user='我';
+
+// init
+$('#today').textContent=todayStr();
+$('select[name=cat]').innerHTML=CATS.map(c=>`<option>${c}</option>`).join('');
+document.querySelectorAll('input[type=date][name=date]').forEach(i=>i.value=todayStr());
+$('#hDate').value=todayStr();
+$('#mMonth').value=todayStr().slice(0,7);
+
+// tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  ['money','health','data'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.t));
+  render();
+});
+document.querySelectorAll('#who button').forEach(b=>b.onclick=()=>{
+  user=b.dataset.u;document.querySelectorAll('#who button').forEach(x=>x.classList.toggle('on',x===b));render();
+});
+$('#mMonth').onchange=render;
+$('#hDate').onchange=render;
+
+const fmt=n=>'$'+Math.round(n).toLocaleString();
+
+function add(coll,rec){db[coll].push({id:uid(),...rec});save();render()}
+function del(coll,id){if(!confirm('確定刪除這筆紀錄？'))return;db[coll]=db[coll].filter(r=>r.id!==id);save();render()}
+window.del=del;
+
+// 編輯：每種紀錄的可編輯欄位
+const SCHEMA={
+  expenses:[['date','日期','date'],['payer','付款人',['我','男友']],['name','項目名稱','text'],['amount','金額','number'],['cat','分類',CATS]],
+  weights:[['date','日期','date'],['kg','體重 (kg)','number','0.1']],
+  meals:[['date','日期','date'],['meal','餐別',['早餐','午餐','晚餐','點心']],['food','食物內容摘要','text'],['kcal','估算熱量 (kcal)','number']],
+  workouts:[['date','日期','date'],['type','項目',['重訓','跑步','TRX','其他']],['min','時間 (分鐘)','number']]
+};
+let editing=null;
+function edit(coll,id){
+  const rec=db[coll].find(r=>r.id===id);if(!rec)return;
+  editing={coll,id};
+  $('#eFields').innerHTML=SCHEMA[coll].map(([k,label,t,step])=>{
+    const v=esc(rec[k]);
+    const input=Array.isArray(t)
+      ?`<select name="${k}">${t.map(o=>`<option value="${esc(o)}"${o===rec[k]?' selected':''}>${esc(k==='payer'?nm(o):o)}</option>`).join('')}</select>`
+      :`<input name="${k}" type="${t}" value="${v}" required${t==='number'?` min="0" step="${step||'any'}" inputmode="decimal"`:''}>`;
+    return `<label>${label}</label>${input}`;
+  }).join('');
+  $('#dlg').showModal();
+}
+window.edit=edit;
+$('#eCancel').onclick=()=>$('#dlg').close();
+$('#eDlg').onsubmit=e=>{
+  if(!editing)return;
+  const f=new FormData(e.target);
+  const rec=db[editing.coll].find(r=>r.id===editing.id);
+  if(rec)SCHEMA[editing.coll].forEach(([k,,t])=>{
+    const v=f.get(k);rec[k]=(t==='number')?+v:(t==='text'?v.trim():v);
+  });
+  editing=null;save();render();
+};
+
+$('#mForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  add('expenses',{date:f.get('date'),payer:f.get('payer'),name:f.get('name').trim(),amount:+f.get('amount'),cat:f.get('cat')});
+  e.target.name.value='';e.target.amount.value='';};
+$('#wForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  const date=f.get('date');
+  db.weights=db.weights.filter(w=>!(w.user===user&&w.date===date)); // 同日同人只留一筆
+  add('weights',{date,user,kg:+f.get('kg')});e.target.kg.value='';};
+$('#fForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  add('meals',{date:f.get('date'),user,meal:f.get('meal'),food:f.get('food').trim(),kcal:+f.get('kcal')});
+  e.target.food.value='';e.target.kcal.value='';};
+$('#eForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
+  add('workouts',{date:f.get('date'),user,type:f.get('type'),min:+f.get('min')});e.target.min.value='';};
+
+function item(l1,l2,r,coll,id){
+  return `<div class="item"><div class="l"><div class="t">${l1}</div><div class="sub">${l2}</div></div><div class="r">${r}<button class="ed" aria-label="編輯" onclick="edit('${coll}','${id}')">✎</button><button class="x" aria-label="刪除" onclick="del('${coll}','${id}')">×</button></div></div>`;
+}
+
+function renderMoney(){
+  const m=$('#mMonth').value||todayStr().slice(0,7);
+  const list=db.expenses.filter(x=>x.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date));
+  const total=list.reduce((s,x)=>s+x.amount,0);
+  $('#mTotal').textContent=fmt(total);
+  const by={我:0,男友:0};list.forEach(x=>by[x.payer]=(by[x.payer]||0)+x.amount);
+  $('#mByPayer').innerHTML=`<div class="legend"><span><i class="dot c-me"></i>${esc(nm('我'))} ${fmt(by['我'])}</span><span><i class="dot c-bf"></i>${esc(nm('男友'))} ${fmt(by['男友'])}</span></div>`;
+  const cat={};list.forEach(x=>{const c=cat[x.cat]||(cat[x.cat]={我:0,男友:0,sum:0});c[x.payer==='男友'?'男友':'我']+=x.amount;c.sum+=x.amount});
+  const rows=Object.entries(cat).sort((a,b)=>b[1].sum-a[1].sum);
+  const mx=rows.length?rows[0][1].sum:1;
+  $('#mCats').innerHTML=rows.map(([c,v])=>`<div class="cat"><div class="h"><span>${esc(c)}</span><b>${fmt(v.sum)}</b></div>
+    <div class="trk" style="width:${Math.max(6,v.sum/mx*100)}%" role="img" aria-label="${esc(c)}：${esc(nm('我'))} ${fmt(v['我'])}，${esc(nm('男友'))} ${fmt(v['男友'])}">
+      <b class="c-me" style="width:${v.sum?v['我']/v.sum*100:0}%"></b><b class="c-bf" style="width:${v.sum?v['男友']/v.sum*100:0}%"></b></div>
+    <div class="d">${esc(nm('我'))} ${fmt(v['我'])}　${esc(nm('男友'))} ${fmt(v['男友'])}</div></div>`).join('');
+  $('#mList').innerHTML=list.length?list.map(x=>item(esc(x.name),`${esc(x.date)} · <span class="tag">${esc(x.cat)}</span>${esc(nm(x.payer))}付`,fmt(x.amount),'expenses',x.id)).join(''):'<div class="empty">這個月還沒有花費紀錄</div>';
+}
+
+function chart(pts){
+  if(!pts.length)return '<div class="empty">還沒有體重紀錄</div>';
+  const W=320,H=150,p=28;
+  const ys=pts.map(q=>q.kg);let lo=Math.min(...ys),hi=Math.max(...ys);
+  if(hi-lo<1){lo-=.5;hi+=.5}
+  const x=i=>pts.length===1?W/2:p+i*(W-2*p)/(pts.length-1);
+  const y=v=>H-p-(v-lo)/(hi-lo)*(H-2*p);
+  const path=pts.map((q,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(q.kg).toFixed(1)).join(' ');
+  const dots=pts.map((q,i)=>`<circle cx="${x(i).toFixed(1)}" cy="${y(q.kg).toFixed(1)}" r="3.5" fill="var(--pri)"><title>${esc(q.date)}：${q.kg} kg</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="體重趨勢圖">
+    <line x1="${p}" y1="${H-p}" x2="${W-p}" y2="${H-p}" stroke="var(--line)"/>
+    <text x="4" y="${y(hi)+4}" font-size="10" fill="var(--sub)">${hi.toFixed(1)}</text>
+    <text x="4" y="${y(lo)+4}" font-size="10" fill="var(--sub)">${lo.toFixed(1)}</text>
+    <path d="${path}" fill="none" stroke="var(--pri)" stroke-width="2.5" stroke-linejoin="round"/>${dots}
+    <text x="${p}" y="${H-8}" font-size="10" fill="var(--sub)">${esc(pts[0].date.slice(5))}</text>
+    <text x="${W-p}" y="${H-8}" font-size="10" fill="var(--sub)" text-anchor="end">${esc(pts[pts.length-1].date.slice(5))}</text></svg>`;
+}
+
+function renderHealth(){
+  const pts=db.weights.filter(w=>w.user===user).sort((a,b)=>a.date.localeCompare(b.date)).slice(-30);
+  $('#chart').innerHTML=chart(pts);
+  $('#wInfo').textContent=pts.length>1?`最新 ${pts[pts.length-1].kg} kg，較首筆 ${(pts[pts.length-1].kg-pts[0].kg>0?'+':'')+(pts[pts.length-1].kg-pts[0].kg).toFixed(1)} kg（最近 ${pts.length} 筆）`:(pts.length?`最新 ${pts[0].kg} kg`:'');
+  const d=$('#hDate').value||todayStr();
+  const meals=db.meals.filter(x=>x.user===user&&x.date===d);
+  const ws=db.workouts.filter(x=>x.user===user&&x.date===d);
+  const wt=db.weights.filter(x=>x.user===user&&x.date===d);
+  $('#sumKcal').textContent=meals.reduce((s,x)=>s+x.kcal,0).toLocaleString();
+  $('#sumMin').textContent=ws.reduce((s,x)=>s+x.min,0);
+  const order=['早餐','午餐','晚餐','點心'];
+  const html=[
+    ...wt.map(x=>item('體重',esc(x.date),x.kg+' kg','weights',x.id)),
+    ...meals.sort((a,b)=>order.indexOf(a.meal)-order.indexOf(b.meal)).map(x=>item(esc(x.food),`<span class="tag">${esc(x.meal)}</span>`,x.kcal+' kcal','meals',x.id)),
+    ...ws.map(x=>item(esc(x.type),'運動',x.min+' 分鐘','workouts',x.id))
+  ];
+  $('#hList').innerHTML=html.length?html.join(''):`<div class="empty">${esc(nm(user))}在這天沒有紀錄</div>`;
+}
+
+function renderData(){
+  $('#dataInfo').textContent=`目前共 ${db.expenses.length} 筆花費、${db.weights.length} 筆體重、${db.meals.length} 筆飲食、${db.workouts.length} 筆運動。`+(memOnly?'（注意：瀏覽器無法寫入儲存空間，關閉頁面後資料會消失，請務必匯出）':'');
+}
+
+function render(){renderMoney();renderHealth();renderData()}
+
+$('#exp').onclick=()=>{
+  const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),...db},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`couple-tracker-${todayStr()}.json`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+$('#impBtn').onclick=()=>$('#impFile').click();
+$('#impFile').onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+    const data=JSON.parse(await file.text());let added=0;
+    COLL.forEach(k=>{if(!Array.isArray(data[k]))return;
+      const have=new Set(db[k].map(r=>r.id));
+      data[k].forEach(r=>{if(r&&r.id&&!have.has(r.id)){db[k].push(r);have.add(r.id);added++}});});
+    save();render();alert(`匯入完成，新增 ${added} 筆。`);
+  }catch(err){alert('匯入失敗：檔案不是有效的 JSON。')}
+  e.target.value='';
+};
+
+render();
+</script>
+</body>
+</html>
