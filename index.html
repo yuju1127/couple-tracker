@@ -42,11 +42,11 @@ svg{width:100%;height:auto;display:block}
 .legend{display:flex;gap:14px;font-size:13px;margin-top:6px}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:baseline}
 .c-me{background:var(--c1)}.c-bf{background:var(--c2)}
-.cat{margin:10px 0}
-.cat .h{display:flex;justify-content:space-between;font-size:13px}
-.cat .trk{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:4px 0 2px;background:var(--line)}
-.cat .trk b{display:block;min-width:0}
-.cat .d{font-size:12px;color:var(--sub)}
+.trk{display:flex;height:20px;border-radius:10px;overflow:hidden;background:var(--line)}
+.trk b{display:block;min-width:0}
+.cl{margin-top:8px}
+.cr{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.cr em{font-style:normal;color:var(--sub);font-size:12px;margin-left:4px}
 .hidden{display:none}
 </style>
 </head>
@@ -151,6 +151,8 @@ svg{width:100%;height:auto;display:block}
 <script>
 const KEY='couple-tracker-v1';
 const CATS=['房屋租金','電費','水費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
+// 依 CATS 順序對應：租金、水電、瓦斯、網路、外食、食材、貓咪、雜項、娛樂交通
+const CAT_COLORS=['#e8735a','#4a90d9','#f2a541','#8e6bd1','#e0568b','#5bb381','#a9805b','#8a97a8','#3fb5c4'];
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -252,9 +254,9 @@ function renderMoney(){
   $('#mByPayer').innerHTML=`<div class="legend"><span>${esc(nm('我'))}花了 <b>${fmt(by['我'])}</b></span><span>${esc(nm('男友'))}花了 <b>${fmt(by['男友'])}</b></span></div>`;
   const cat={};list.forEach(x=>{cat[x.cat]=(cat[x.cat]||0)+x.amount});
   const rows=Object.entries(cat).sort((a,b)=>b[1]-a[1]);
-  const mx=rows.length?rows[0][1]:1;
-  $('#mCats').innerHTML=rows.map(([c,v])=>`<div class="cat"><div class="h"><span>${esc(c)}</span><b>${fmt(v)}</b></div>
-    <div class="trk" role="img" aria-label="${esc(c)} ${fmt(v)}"><b style="width:${Math.max(3,v/mx*100)}%;background:var(--pri)"></b></div></div>`).join('');
+  const col=c=>CAT_COLORS[CATS.indexOf(c)%CAT_COLORS.length];
+  $('#mCats').innerHTML=rows.length?`<div class="trk" role="img" aria-label="當月各分類花費佔比">${rows.map(([c,v])=>`<b style="width:${v/total*100}%;background:${col(c)}" title="${esc(c)} ${fmt(v)}"></b>`).join('')}</div>
+    <div class="cl">${rows.map(([c,v])=>`<div class="cr"><span><i class="dot" style="background:${col(c)}"></i>${esc(c)}</span><span>${fmt(v)} <em>${Math.round(v/total*100)}%</em></span></div>`).join('')}</div>`:'';
   $('#mList').innerHTML=list.length?list.map(x=>item(esc(x.name),`${esc(x.date)} · <span class="tag">${esc(x.cat)}</span>${esc(nm(x.payer))}付`,fmt(x.amount),'expenses',x.id)).join(''):'<div class="empty">這個月還沒有花費紀錄</div>';
 }
 
