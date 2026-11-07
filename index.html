@@ -47,6 +47,7 @@ svg{width:100%;height:auto;display:block}
 .cl{margin-top:8px}
 .cr{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
 .cr em{font-style:normal;color:var(--sub);font-size:12px;margin-left:4px}
+.pbox{padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--pri2);font-weight:600}
 .who2{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0;max-width:55%}
 .who2 #userName{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ghost-s{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:3px 12px;font-size:13px;cursor:pointer}
@@ -89,7 +90,7 @@ svg{width:100%;height:auto;display:block}
     <form id="mForm">
       <div class="row">
         <div><label>日期</label><input type="date" name="date" required></div>
-        <div><label>付款人</label><select name="payer"><option value="我">如如</option><option value="男友">桓桓</option></select></div>
+        <div><label>付款人（登入帳號）</label><div id="payerShow" class="pbox"></div></div>
       </div>
 		<div><label>項目</label><select name="cat"></select></div>
       <div class="row">
@@ -188,6 +189,12 @@ let db={expenses:[],weights:[],meals:[],workouts:[]};
 // 內部以「我 / 男友」儲存，畫面顯示暱稱
 const NAMES={'我':'如如','男友':'桓桓'};
 const nm=u=>NAMES[u]||u;
+// 登入帳號 UID → 內部身分（付款人、個人日誌預設都跟著登入帳號走）
+const UID_MAP={
+  '3MFA5p4ccnNSGuyCUmAb9x1c1Ct1':'我',      // 如如 soyeon11822@gmail.com
+  'zqep43JQB9M97aq6ootKndei7xo2':'男友'     // 桓桓 inno_chiou@gmail.com
+};
+let me=null; // 目前登入者的內部身分
 
 // ---- Firestore 讀寫 ----
 const run=p=>p.catch(e=>{console.error(e);alert('操作失敗：'+(e.code==='permission-denied'?'沒有權限，請確認登入的是正確帳號。':(e.message||e)))});
@@ -205,7 +212,10 @@ function stopSync(){unsubs.forEach(f=>f());unsubs=[];COLL.forEach(k=>db[k]=[]);}
 // ---- 登入 ----
 onAuthStateChanged(auth,u=>{
   currentUser=u;
-  $('#userName').textContent=u?u.email:'';
+  me=u?(UID_MAP[u.uid]||null):null;
+  $('#userName').textContent=u?(me?`${nm(me)}（${u.email}）`:u.email):'';
+  $('#payerShow').textContent=me?nm(me):'未綁定的帳號';
+  if(me){user=me;document.querySelectorAll('#who button').forEach(x=>x.classList.toggle('on',x.dataset.u===me))}
   $('#login').classList.toggle('hidden',!!u);
   $('#loginMsg').textContent='';
   $('#loginForm').classList.toggle('hidden',!!u);
@@ -250,7 +260,7 @@ window.del=del;
 
 // 編輯：每種紀錄的可編輯欄位
 const SCHEMA={
-  expenses:[['date','日期','date'],['payer','付款人',['我','男友']],['name','項目名稱','text'],['amount','金額','number'],['cat','分類',CATS]],
+  expenses:[['date','日期','date'],['payer','付款人',['我','男友']],['cat','項目',CATS],['amount','金額','number'],['name','備註','text']],
   weights:[['date','日期','date'],['kg','體重 (kg)','number','0.1']],
   meals:[['date','日期','date'],['meal','餐別',['早餐','午餐','晚餐','點心']],['food','食物內容摘要','text'],['kcal','估算熱量 (kcal)','number']],
   workouts:[['date','日期','date'],['type','項目',['重訓','跑步','TRX','其他']],['min','時間 (分鐘)','number']]
@@ -263,7 +273,7 @@ function edit(coll,id){
     const v=esc(rec[k]);
     const input=Array.isArray(t)
       ?`<select name="${k}">${t.map(o=>`<option value="${esc(o)}"${o===rec[k]?' selected':''}>${esc(k==='payer'?nm(o):o)}</option>`).join('')}</select>`
-      :`<input name="${k}" type="${t}" value="${v}" required${t==='number'?` min="0" step="${step||'any'}" inputmode="decimal"`:''}>`;
+      :`<input name="${k}" type="${t}" value="${v}"${k==='name'?'':' required'}${t==='number'?` min="0" step="${step||'any'}" inputmode="decimal"`:''}>`;
     return `<label>${label}</label>${input}`;
   }).join('');
   $('#dlg').showModal();
@@ -285,7 +295,8 @@ $('#eDlg').onsubmit=e=>{
 };
 
 $('#mForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
-  add('expenses',{date:f.get('date'),payer:f.get('payer'),name:f.get('name').trim(),amount:+f.get('amount'),cat:f.get('cat')});
+  if(!me){alert('這個帳號尚未綁定付款人，無法新增花費。');return}
+  add('expenses',{date:f.get('date'),payer:me,name:f.get('name').trim(),amount:+f.get('amount'),cat:f.get('cat')});
   e.target.name.value='';e.target.amount.value='';};
 $('#wForm').onsubmit=e=>{e.preventDefault();const f=new FormData(e.target);
   const date=f.get('date');
@@ -313,7 +324,7 @@ function renderMoney(){
   const col=c=>CAT_COLORS[CATS.indexOf(c)%CAT_COLORS.length];
   $('#mCats').innerHTML=rows.length?`<div class="trk" role="img" aria-label="當月各分類花費佔比">${rows.map(([c,v])=>`<b style="width:${v/total*100}%;background:${col(c)}" title="${esc(c)} ${fmt(v)}"></b>`).join('')}</div>
     <div class="cl">${rows.map(([c,v])=>`<div class="cr"><span><i class="dot" style="background:${col(c)}"></i>${esc(c)}</span><span>${fmt(v)} <em>${Math.round(v/total*100)}%</em></span></div>`).join('')}</div>`:'';
-  $('#mList').innerHTML=list.length?list.map(x=>item(esc(x.name),`${esc(x.date)} · <span class="tag">${esc(x.cat)}</span>${esc(nm(x.payer))}付`,fmt(x.amount),'expenses',x.id)).join(''):'<div class="empty">這個月還沒有花費紀錄</div>';
+  $('#mList').innerHTML=list.length?list.map(x=>item(esc(x.name||x.cat),`${esc(x.date)} · <span class="tag">${esc(x.cat)}</span>${esc(nm(x.payer))}付`,fmt(x.amount),'expenses',x.id)).join(''):'<div class="empty">這個月還沒有花費紀錄</div>';
 }
 
 function chart(pts){
