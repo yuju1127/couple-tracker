@@ -72,19 +72,28 @@ svg{width:100%;height:auto;display:block}
 .dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
 .dh h2{margin:0;font-size:17px}
 .dclose{border:0;background:var(--pri2);border-radius:999px;width:32px;height:32px;font-size:20px;line-height:1;cursor:pointer}
-.has-cat{position:relative;margin-top:50px}
-.cat{position:absolute;left:20px;top:-54px;width:128px;height:auto;pointer-events:none;overflow:visible}
-:root{--cat:#25252b}
-@media (prefers-color-scheme:dark){:root{--cat:#4a4a55}}
-.cat .tail{transform-origin:104px 53px;animation:wag 1.6s ease-in-out infinite alternate}
-.cat .breath{transform-origin:66px 61px;animation:breath 3.2s ease-in-out infinite}
-.cat .ear{transform-origin:36px 26px;animation:twitch 6s ease-in-out infinite}
-.cat .eyes{transform-box:fill-box;transform-origin:center;animation:blink 5s infinite}
-@keyframes wag{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
-@keyframes breath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.07)}}
-@keyframes twitch{0%,90%,100%{transform:rotate(0)}93%{transform:rotate(-12deg)}96%{transform:rotate(4deg)}}
-@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
-@media (prefers-reduced-motion:reduce){.cat *{animation:none!important}}
+.has-cat{position:relative;margin-top:78px}
+.cat{position:absolute;right:-16px;top:-56px;width:140px;height:auto;pointer-events:none;overflow:visible;z-index:2}
+:root{--cat:#1d1d22;--cat-tip:#6a6a73}
+@media (prefers-color-scheme:dark){:root{--cat:#44444e;--cat-tip:#8a8a95}}
+.cat .tail{transform-origin:146px 60px;animation:sway 2.6s ease-in-out infinite alternate}
+.cat .breath{transform-origin:80px 60px;animation:breath 3.6s ease-in-out infinite}
+.cat .ear{transform-origin:68px 28px;animation:twitch 7s ease-in-out infinite}
+.cat .eyes{transform-box:fill-box;transform-origin:50% 0;animation:blink 6s infinite}
+@keyframes sway{from{transform:rotate(-9deg)}to{transform:rotate(10deg)}}
+@keyframes breath{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.05)}}
+@keyframes twitch{0%,90%,100%{transform:rotate(0)}93%{transform:rotate(10deg)}96%{transform:rotate(-3deg)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+.cat2{position:absolute;left:10px;top:-95px;width:104px;height:auto;pointer-events:none;overflow:visible;z-index:2}
+.cat2 .t2head{transform-origin:60px 54px;animation:lick 2.6s ease-in-out infinite}
+.cat2 .t2tongue{transform-box:fill-box;transform-origin:50% 0;animation:tongue 2.6s ease-in-out infinite}
+.cat2 .t2leg{transform-origin:84px 88px;animation:legq 2.6s ease-in-out infinite}
+.cat2 .t2tail{transform-origin:96px 90px;animation:t2sway 3.4s ease-in-out infinite alternate}
+@keyframes lick{0%,10%,100%{transform:translateY(0) rotate(0)}24%{transform:translateY(12px) rotate(-4deg)}34%{transform:translateY(8px) rotate(-2deg)}46%{transform:translateY(12px) rotate(-4deg)}56%{transform:translateY(8px) rotate(-2deg)}68%{transform:translateY(12px) rotate(-4deg)}82%{transform:translateY(0) rotate(0)}}
+@keyframes tongue{0%,20%,100%{opacity:0;transform:scale(.4)}26%,32%{opacity:1;transform:scale(1)}38%,42%{opacity:0;transform:scale(.4)}48%,54%{opacity:1;transform:scale(1)}60%,64%{opacity:0;transform:scale(.4)}70%,76%{opacity:1;transform:scale(1)}84%{opacity:0}}
+@keyframes legq{0%,100%{transform:rotate(0)}30%,50%,72%{transform:rotate(-2.5deg)}40%,60%{transform:rotate(1.5deg)}}
+@keyframes t2sway{from{transform:rotate(-4deg)}to{transform:rotate(5deg)}}
+@media (prefers-reduced-motion:reduce){.cat *,.cat2 *{animation:none!important}}
 .hidden{display:none}
 </style>
 </head>
@@ -109,17 +118,18 @@ svg{width:100%;height:auto;display:block}
 <!-- 記帳 -->
 <section id="tab-money">
   <div class="card has-cat">
-    <svg class="cat" viewBox="0 0 140 60" aria-hidden="true">
-      <g class="tail"><path d="M104 53 C124 53 130 36 120 24" fill="none" stroke="var(--cat)" stroke-width="7" stroke-linecap="round"/></g>
-      <g class="breath"><ellipse cx="66" cy="47" rx="44" ry="14" fill="var(--cat)"/></g>
-      <ellipse cx="22" cy="57" rx="8" ry="4" fill="var(--cat)"/><ellipse cx="40" cy="57" rx="8" ry="4" fill="var(--cat)"/>
-      <circle cx="30" cy="38" r="15" fill="var(--cat)"/>
-      <path d="M17 30 L19 12 L30 24 Z" fill="var(--cat)"/>
-      <g class="ear"><path d="M43 30 L41 12 L30 24 Z" fill="var(--cat)"/></g>
-      <path d="M20 16 L21 24 L26 21 Z" fill="#6b5560" opacity=".55"/>
-      <g class="eyes"><ellipse cx="24" cy="38" rx="2.6" ry="3" fill="#F2C94C"/><ellipse cx="36" cy="38" rx="2.6" ry="3" fill="#F2C94C"/>
-        <rect x="23.4" y="35.5" width="1.2" height="5" rx=".6" fill="#111"/><rect x="35.4" y="35.5" width="1.2" height="5" rx=".6" fill="#111"/></g>
-      <path d="M28.5 43 L31.5 43 L30 45 Z" fill="#c98b8b"/>
+    <svg class="cat" viewBox="0 0 150 112" aria-hidden="true">
+      <g class="tail"><path d="M124 56 C140 56 146 58 146 68 L146 104" fill="none" stroke="var(--cat)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="146" cy="104" r="4.6" fill="var(--cat-tip)"/></g>
+      <g class="breath"><path d="M30 60 C26 36 54 21 86 21 C116 21 134 38 134 60 Z" fill="var(--cat)"/></g>
+      <ellipse cx="48" cy="36" rx="20" ry="17" fill="var(--cat)"/>
+      <path d="M29 28 L30 7 L46 20 Z" fill="var(--cat)"/>
+      <g class="ear"><path d="M53 20 L68 8 L65 30 Z" fill="var(--cat)"/></g>
+      <g class="eyes">
+        <path d="M34.5 35 A5.6 4.2 0 0 0 45.7 35 Z" fill="#fff"/><ellipse cx="40.1" cy="36.2" rx="2" ry="2.3" fill="#111"/>
+        <path d="M52.3 35 A5.6 4.2 0 0 0 63.5 35 Z" fill="#fff"/><ellipse cx="57.9" cy="36.2" rx="2" ry="2.3" fill="#111"/>
+      </g>
+      <path d="M46.5 42 L51 42 L48.8 44.4 Z" fill="#d9a0a0"/>
+      <g stroke="#d6d6de" stroke-width="1" stroke-linecap="round" opacity=".75"><path d="M33 42 L19 39"/><path d="M33 45 L20 47"/><path d="M65 42 L77 40"/><path d="M65 45 L76 47"/></g>
     </svg>
     <div class="top">
       <div><div class="sub">本月可使用</div><div class="total" id="mLeft">$0</div></div>
