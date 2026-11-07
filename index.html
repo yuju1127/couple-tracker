@@ -150,7 +150,7 @@ svg{width:100%;height:auto;display:block}
 
 <script>
 const KEY='couple-tracker-v1';
-const CATS=['房屋租金','水電費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
+const CATS=['房屋租金','電費','水費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const todayStr=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
