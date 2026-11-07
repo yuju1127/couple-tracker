@@ -47,6 +47,9 @@ svg{width:100%;height:auto;display:block}
 .cl{margin-top:8px}
 .cr{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
 .cr em{font-style:normal;color:var(--sub);font-size:12px;margin-left:4px}
+.who2{display:flex;flex-direction:column;align-items:flex-end;gap:4px;min-width:0;max-width:55%}
+.who2 #userName{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ghost-s{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:3px 12px;font-size:13px;cursor:pointer}
 #login{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center}
 #login.hidden{display:none}
 .hidden{display:none}
@@ -65,7 +68,10 @@ svg{width:100%;height:auto;display:block}
     <div class="sub" id="loginMsg" style="margin-top:8px;color:var(--danger)"></div>
   </div>
 </div>
-<header><h1>🏠 我們的小日子</h1><span class="sub" id="today"></span></header>
+<header>
+  <div><h1>🏠 我們的小日子</h1><div class="sub" id="today"></div></div>
+  <div class="who2"><span id="userName" class="sub"></span><button id="logout" class="ghost-s">登出</button></div>
+</header>
 <main>
 <!-- 記帳 -->
 <section id="tab-money">
@@ -142,26 +148,12 @@ svg{width:100%;height:auto;display:block}
   <div class="card"><h2>當日日誌</h2><div id="hList"></div></div>
 </section>
 
-<!-- 資料 -->
-<section id="tab-data" class="hidden">
-  <div class="card">
-    <h2>資料同步</h2>
-    <p class="sub">資料已即時同步到雲端，兩人登入後看到的是同一份。「匯出」可當備份；「匯入」會依 id 合併，不會覆蓋或重複。</p>
-    <button class="btn" id="exp">匯出 JSON</button>
-    <button class="btn ghost" id="impBtn" style="margin-top:10px">匯入 JSON</button>
-    <input type="file" id="impFile" accept="application/json,.json" class="hidden">
-    <button class="btn ghost" id="upLocal" style="margin-top:10px">上傳這台裝置的舊資料到雲端</button>
-    <button class="btn ghost" id="logout" style="margin-top:10px">登出</button>
-    <div class="sub" id="dataInfo" style="margin-top:10px"></div>
-  </div>
-</section>
 </main>
 <dialog id="dlg"><form id="eDlg" method="dialog"><h2 style="font-size:16px;margin:0 0 4px">編輯紀錄</h2><div id="eFields"></div>
   <div class="row" style="margin-top:12px"><button type="button" class="btn ghost" id="eCancel" style="margin:0">取消</button><button class="btn" style="margin:0">儲存</button></div></form></dialog>
 <nav>
   <button data-t="money" class="on">💰 記帳</button>
   <button data-t="health">🥗 健康</button>
-  <button data-t="data">🔄 資料</button>
 </nav>
 
 <script type="module">
@@ -182,7 +174,6 @@ const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const fsdb=initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
 
-const KEY='couple-tracker-v1'; // 舊版本機資料的 key（只用於「上傳舊資料」）
 const CATS=['房屋租金','電費','水費','瓦斯費','網路費','餐飲外食','食材採買','貓咪寵物','日用雜項','娛樂交通'];
 // 依 CATS 順序一一對應（目前 10 個分類，新增分類時請一併補顏色）
 const CAT_COLORS=['#e8735a','#4a90d9','#3fb5c4','#f2a541','#8e6bd1','#e0568b','#5bb381','#a9805b','#8a97a8','#c9b037'];
@@ -197,7 +188,6 @@ let db={expenses:[],weights:[],meals:[],workouts:[]};
 // 內部以「我 / 男友」儲存，畫面顯示暱稱
 const NAMES={'我':'如如','男友':'桓桓'};
 const nm=u=>NAMES[u]||u;
-const ALIAS={'如如':'我','桓桓':'男友'};
 
 // ---- Firestore 讀寫 ----
 const run=p=>p.catch(e=>{console.error(e);alert('操作失敗：'+(e.code==='permission-denied'?'沒有權限，請確認登入的是正確帳號。':(e.message||e)))});
@@ -215,6 +205,7 @@ function stopSync(){unsubs.forEach(f=>f());unsubs=[];COLL.forEach(k=>db[k]=[]);}
 // ---- 登入 ----
 onAuthStateChanged(auth,u=>{
   currentUser=u;
+  $('#userName').textContent=u?u.email:'';
   $('#login').classList.toggle('hidden',!!u);
   $('#loginMsg').textContent='';
   $('#loginForm').classList.toggle('hidden',!!u);
@@ -242,7 +233,7 @@ $('#mMonth').value=todayStr().slice(0,7);
 // tabs
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
-  ['money','health','data'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.t));
+  ['money','health'].forEach(t=>$('#tab-'+t).classList.toggle('hidden',t!==b.dataset.t));
   render();
 });
 document.querySelectorAll('#who button').forEach(b=>b.onclick=()=>{
@@ -362,50 +353,7 @@ function renderHealth(){
   $('#hList').innerHTML=html.length?html.join(''):`<div class="empty">${esc(nm(user))}在這天沒有紀錄</div>`;
 }
 
-function renderData(){
-  $('#dataInfo').textContent=`雲端目前共 ${db.expenses.length} 筆花費、${db.weights.length} 筆體重、${db.meals.length} 筆飲食、${db.workouts.length} 筆運動。`+(currentUser?`　登入帳號：${currentUser.email}`:'');
-}
-
-function render(){renderMoney();renderHealth();renderData()}
-
-$('#exp').onclick=()=>{
-  const blob=new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),...db},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`couple-tracker-${todayStr()}.json`;a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-};
-$('#impBtn').onclick=()=>$('#impFile').click();
-// 把資料合併進雲端：依 id 比對，已存在的不會覆蓋或重複
-async function mergeIn(data){
-  let added=0;const jobs=[];
-  COLL.forEach(k=>{if(!Array.isArray(data[k]))return;
-    const have=new Set(db[k].map(r=>r.id));
-    data[k].forEach(r=>{
-      if(!r||!r.id||have.has(r.id))return;
-      if(k==='expenses'&&ALIAS[r.payer])r={...r,payer:ALIAS[r.payer]};
-      have.add(r.id);added++;jobs.push(save1(k,r));
-    });});
-  await Promise.all(jobs);
-  return added;
-}
-$('#impFile').onchange=async e=>{
-  const file=e.target.files[0];if(!file)return;
-  if(!currentUser){alert('請先登入。');e.target.value='';return}
-  try{
-    const data=JSON.parse(await file.text());
-    alert(`匯入完成，新增 ${await mergeIn(data)} 筆。`);
-  }catch(err){alert('匯入失敗：檔案不是有效的 JSON。')}
-  e.target.value='';
-};
-// 舊版把資料存在這台裝置的瀏覽器裡，這顆按鈕把它搬上雲端
-$('#upLocal').onclick=async()=>{
-  if(!currentUser){alert('請先登入。');return}
-  let old=null;
-  try{old=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
-  const n=old?COLL.reduce((s,k)=>s+(Array.isArray(old[k])?old[k].length:0),0):0;
-  if(!n){alert('這台裝置上沒有舊版的本機資料。');return}
-  if(!confirm(`找到 ${n} 筆舊資料，要上傳到雲端嗎？（已存在的不會重複）`))return;
-  alert(`上傳完成，新增 ${await mergeIn(old)} 筆。`);
-};
+function render(){renderMoney();renderHealth()}
 
 render();
 </script>
